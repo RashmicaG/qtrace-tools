@@ -264,6 +264,7 @@ void usage(void)
 	fprintf(stderr, "\t-p pid	pid to attach to\n");
 	fprintf(stderr, "\t-n nr_insns	Number of instructions to trace\n");
 	fprintf(stderr, "\t-s nr_insns	Number of instructions to skip\n");
+	fprintf(stderr, "\t-u         	Use SIGWINCH to start and stop trace\n");
 }
 
 int main(int argc, char *argv[])
@@ -274,9 +275,11 @@ int main(int argc, char *argv[])
 #if 0
 	bool follow_fork = false;
 #endif
+	bool use_signals = false;
+	bool trace_started = false;
 
 	while (1) {
-		signed char c = getopt(argc, argv, "+a:q:p:fn:s:rc:h");
+		signed char c = getopt(argc, argv, "+a:q:p:fn:s:rc:hu");
 		if (c < 0)
 			break;
 
@@ -312,6 +315,10 @@ int main(int argc, char *argv[])
 
 		case 'c':
 			checkpoint_dir = optarg;
+			break;
+
+		case 'u':
+			use_signals = true;
 			break;
 
 		default:
@@ -463,6 +470,37 @@ int main(int argc, char *argv[])
 			}
 
 			continue;
+		}
+
+		if (use_signals) {
+			unsigned int sig = WSTOPSIG(status);
+
+			if (sig == SIGWINCH) {
+				trace_started = !trace_started;
+				if (trace_started)
+					fprintf(stderr, "Trace started\n");
+				else {
+					fprintf(stderr, "Trace stopped\n");
+					detach_all_threads();
+					exit(0);
+				}
+
+				if (ptrace(PTRACE_SINGLESTEP, pid, 0, 0) == -1) {
+					perror("ptrace(RESTART)");
+					exit(1);
+				}
+				continue;
+
+			}
+
+			if (! trace_started) {
+				if (ptrace(PTRACE_CONT, pid, 0, 0) == -1) {
+					perror("ptrace");
+					exit(1);
+				}
+
+				continue;
+			}
 		}
 
 		/* XXX FIXME: need to handle exec in some sane way */
