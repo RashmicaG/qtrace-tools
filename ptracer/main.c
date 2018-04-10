@@ -262,6 +262,7 @@ void usage(void)
 	fprintf(stderr, "\t-a logfile	ASCII disassembly to file\n");
 	fprintf(stderr, "\t-q logfile	QTRACE output to file\n");
 	fprintf(stderr, "\t-p pid	pid to attach to\n");
+	fprintf(stderr, "\t-t 		Trace specified thread (otherwise the most active thread in the TGID is chosen)\n");
 	fprintf(stderr, "\t-n nr_insns	Number of instructions to trace\n");
 	fprintf(stderr, "\t-s nr_insns	Number of instructions to skip\n");
 	fprintf(stderr, "\t-u         	Use SIGWINCH to start and stop trace\n");
@@ -277,9 +278,10 @@ int main(int argc, char *argv[])
 #endif
 	bool use_signals = false;
 	bool trace_started = false;
+	bool use_specific_pid = false;
 
 	while (1) {
-		signed char c = getopt(argc, argv, "+a:q:p:fn:s:rc:hu");
+		signed char c = getopt(argc, argv, "+a:q:p:fn:s:rc:hut");
 		if (c < 0)
 			break;
 
@@ -321,6 +323,10 @@ int main(int argc, char *argv[])
 			use_signals = true;
 			break;
 
+		case 't':
+			use_specific_pid = true;
+			break;
+
 		default:
 			usage();
 			exit(1);
@@ -357,7 +363,11 @@ int main(int argc, char *argv[])
 
 		tracing_pid = child_pid;
 
-		if (!nr_insns_skip && (nr_pids > 1))
+		/*
+ 		 * If there is only one thread or user asked for the specified
+ 		 * pid to be used, then don't do a fast forward
+ 		 */
+		if (!nr_insns_skip && (nr_pids > 1) && !use_specific_pid)
 			nr_insns_skip = FAST_FORWARD_COUNT;
 	} else {
 		tracing_pid = do_exec(&argv[optind]);
