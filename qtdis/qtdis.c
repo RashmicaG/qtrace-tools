@@ -19,6 +19,7 @@
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <assert.h>
+#include <zlib.h>
 
 #include "config.h"
 
@@ -40,6 +41,9 @@
 #define be32_to_cpup(A)	(*(uint32_t *)A)
 #define be64_to_cpup(A)	(*(uint64_t *)A)
 #endif
+
+#define MAX_RECORD_LENGTH 34000
+#define BUF_SIZE 5 * 1024 * 1024
 
 #ifdef HAVE_BFD_H
 static int qtbuild;
@@ -789,11 +793,13 @@ static void usage(void)
 
 int main(int argc, char *argv[])
 {
-	int fd;
-	struct stat buf;
 	void *p;
-	unsigned long size, x;
+	unsigned long  x;
 	unsigned long ea = 0;
+	unsigned char data[BUF_SIZE];
+	int data_processed = 0;;
+	int data_end = 0;;
+	int eof = 0;
 
 	show_stats_only = false;
 	basic_block_only = false;
@@ -862,45 +868,73 @@ int main(int argc, char *argv[])
 		ppcstats_init(flags);
 	}
 
-	fd = open(argv[optind], O_RDONLY);
-	if (fd < 0) {
-		perror("open");
+	gzFile file = NULL;
+	file = gzopen(argv[optind], "r");
+	if (!file) {
+		perror("failed to open");
 		exit(1);
 	}
-
-	if (fstat(fd, &buf)) {
-		perror("fstat");
-		exit(1);
-	}
-	size = buf.st_size;
-
-	p = mmap(NULL, size, PROT_READ, MAP_SHARED, fd, 0);
-	if (p == MAP_FAILED) {
-		perror("mmap");
-		exit(1);
-	}
-
-	x = parse_header(p, &ea);
-	size -= x;
-	p += x;
-
 	if (basic_block_only)
 		bb_init();
-	while (size) {
+
+	while (!eof) {
+		int err;
+		int bytes_read = 0;
+
 		/*
-		 * We sometimes see two file headers at the start of a mambo trace, or
-		 * a header in the middle of a trace. Not sure if this is a bug, but
-		 * skip over them regardless. We identify them by a null instruction.
+		 * Fill buffer up with more data. If the file isn't gzip compressed
+		 * gzread just puts data straight into the buffer.
 		 */
-		if (!be32_to_cpup(p)) {
-			x = parse_header(p, &ea);
-			size -= x;
-			p += x;
+		bytes_read = gzread(file, data + data_processed, BUF_SIZE - data_processed);
+		data_end = bytes_read + data_processed - 1;
+
+		if (bytes_read < (BUF_SIZE -1 - data_processed)) {
+			if (gzeof(file))
+				eof = 1;
+			else {
+				const char * error_string;
+				error_string = gzerror (file, & err);
+				if (err) {
+					fprintf (stderr, "Error: %s.\n", error_string);
+					exit (EXIT_FAILURE);
+				}
+			}
 		}
 
-		x = parse_record(p, &ea);
-		p += x;
-		size -= x;
+		p = data;
+		data_processed = 0;
+
+		/* Process data until we potentially have less than a record left */
+		while ( (BUF_SIZE - data_processed) > MAX_RECORD_LENGTH || eof) {
+
+			if (p == (data + data_end + 1))
+				break;;
+
+			/*
+			 * We sometimes see two file headers at the start of a mambo trace, or
+			 * a header in the middle of a trace. Not sure if this is a bug, but
+			 * skip over them regardless. We identify them by a null instruction.
+			 */
+			if (!be32_to_cpup(p)) {
+				x = parse_header(p, &ea);
+				p += x;
+				data_processed += x;
+				continue;
+			}
+
+			x = parse_record(p, &ea);
+			p += x;
+			data_processed += x;
+		}
+
+		/* Move end of buffer to front */
+		int i,j = 0;
+		for (i = data_processed; i < BUF_SIZE; i++) {
+			data[j] = data[i];
+			j++;
+			data[i] = 0;
+		}
+		data_processed = j;
 	}
 
 	    if (show_stats_only || show_imix_only)
