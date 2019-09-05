@@ -225,6 +225,70 @@ err:
 	return false;
 }
 
+static void write_reg(struct qtwriter_state *state, struct qtrace_reg_info *reg, int nr_regs, int reg_type)
+{
+	int i;
+
+	switch (reg_type) {
+	case GPR:
+	case FPR:
+		for (i = 0; i < nr_regs; i++) {
+			put8(state, reg[i].index);
+			put64(state, reg[i].value);
+		}
+		break;
+	case VMX:
+	case VSX:
+		for (i = 0; i < nr_regs; i++) {
+			put16(state, reg[i].index);
+			put64(state, reg[i].value);
+			put64(state, reg[i].value2);
+		}
+		break;
+	case SPR:
+		for (i = 0; i < nr_regs; i++) {
+			put16(state, reg[i].index);
+			put64(state, reg[i].value);
+		}
+		break;
+	}
+}
+
+static bool write_regs(struct qtwriter_state *state, struct qtrace_reg_state *regs, bool tlbie)
+{
+	put8(state, regs->nr_gprs_in);
+	put8(state, regs->nr_fprs_in);
+	put8(state, regs->nr_vmxs_in);
+	if (state->version >= 0x7000000)
+		put8(state, regs->nr_vsxs_in);
+	put8(state, regs->nr_sprs_in);
+
+	put8(state, regs->nr_gprs_out);
+	put8(state, regs->nr_fprs_out);
+	put8(state, regs->nr_vmxs_out);
+	if (state->version >= 0x7000000)
+		put8(state, regs->nr_vsxs_out);
+	put8(state, regs->nr_sprs_out);
+
+	write_reg(state, regs->gprs_in, regs->nr_gprs_in, GPR);
+	write_reg(state, regs->fprs_in, regs->nr_fprs_in, FPR);
+	write_reg(state, regs->vmxs_in, regs->nr_vmxs_in, VMX);
+	write_reg(state, regs->vsxs_in, regs->nr_vsxs_in, VSX);
+	write_reg(state, regs->sprs_in, regs->nr_sprs_in, SPR);
+
+	write_reg(state, regs->gprs_out, regs->nr_gprs_out, GPR);
+	write_reg(state, regs->fprs_out, regs->nr_fprs_out, FPR);
+	write_reg(state, regs->vmxs_out, regs->nr_vmxs_out, VMX);
+	write_reg(state, regs->vsxs_out, regs->nr_vsxs_out, VSX);
+	write_reg(state, regs->sprs_out, regs->nr_sprs_out, SPR);
+
+	if (state->ptr > (state->mem + state->size))
+		return true;
+	else
+		return false;
+}
+
+
 bool qtwriter_write_record(struct qtwriter_state *state,
 			   struct qtrace_record *record)
 {
@@ -310,6 +374,9 @@ bool qtwriter_write_record(struct qtwriter_state *state,
 			flags |= (QTRACE_IAR_CHANGE_PRESENT | QTRACE_IAR_PRESENT);
 	}
 
+	if (state->prev_record.regs_valid)
+		flags |= QTRACE_REGISTER_TRACE_PRESENT;
+
 	/* Setup flags2 */
 	if (flags3)
 		flags2 |= QTRACE_EXTENDED_FLAGS2_PRESENT;
@@ -376,6 +443,10 @@ bool qtwriter_write_record(struct qtwriter_state *state,
 
 		put32(state, record->insn_ra >> pshift);
 	}
+
+	/* Registers present */
+	if (flags & QTRACE_REGISTER_TRACE_PRESENT)
+		write_regs(state, &state->prev_record.regs, state->prev_record.tlbie);
 
 	/* XXX Add sequential insn rpn and sequential page size */
 

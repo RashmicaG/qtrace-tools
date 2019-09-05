@@ -4,6 +4,13 @@
 #include <stdint.h>
 #include <stdbool.h>
 
+// need to get max in values
+#define QTRACE_MAX_GPRS_OUT  32
+#define QTRACE_MAX_FPRS_OUT   3
+#define QTRACE_MAX_SPRS_OUT   4
+#define QTRACE_MAX_VMXRS_OUT  3
+#define QTRACE_MAX_VSXRS_OUT  3
+
 enum branch_type {
 	BRANCH,
 	CALL,
@@ -12,6 +19,37 @@ enum branch_type {
 	SYSTEM_CALL_EXCEPTION,
 	ASYNC_EXCEPTION,
 	EXCEPTION_RETURN
+};
+
+struct qtrace_reg_info {
+	uint16_t index;
+	uint64_t value;
+	uint64_t value2;
+};
+
+enum {GPR, FPR, VMX, VSX, SPR};
+
+struct qtrace_reg_state {
+	uint8_t nr_gprs_in;
+	uint8_t nr_fprs_in;
+	uint8_t nr_vmxs_in;
+	uint8_t nr_vsxs_in;
+	uint8_t nr_sprs_in;
+	uint8_t nr_gprs_out;
+	uint8_t nr_fprs_out;
+	uint8_t nr_vmxs_out;
+	uint8_t nr_vsxs_out;
+	uint8_t nr_sprs_out;
+	struct qtrace_reg_info gprs_in[QTRACE_MAX_GPRS_OUT];
+	struct qtrace_reg_info fprs_in[QTRACE_MAX_FPRS_OUT];
+	struct qtrace_reg_info vmxs_in[QTRACE_MAX_VMXRS_OUT];
+	struct qtrace_reg_info vsxs_in[QTRACE_MAX_VSXRS_OUT];
+	struct qtrace_reg_info sprs_in[QTRACE_MAX_SPRS_OUT];
+	struct qtrace_reg_info gprs_out[QTRACE_MAX_GPRS_OUT];
+	struct qtrace_reg_info fprs_out[QTRACE_MAX_FPRS_OUT];
+	struct qtrace_reg_info vmxs_out[QTRACE_MAX_VMXRS_OUT];
+	struct qtrace_reg_info vsxs_out[QTRACE_MAX_VSXRS_OUT];
+	struct qtrace_reg_info sprs_out[QTRACE_MAX_SPRS_OUT];
 };
 
 struct qtrace_record {
@@ -27,6 +65,8 @@ struct qtrace_record {
 	uint64_t data_ra;
 	bool data_page_shift_valid;
 	uint32_t data_page_shift;
+	bool regs_valid;
+	struct qtrace_reg_state regs;
 
 	bool branch;
 	bool conditional_branch;

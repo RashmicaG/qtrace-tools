@@ -382,17 +382,6 @@ static void annotate_branch(struct qtrace_record *record)
 	record->branch_type = ASYNC_EXCEPTION;
 }
 
-#define QTRACE_MAX_GPRS_OUT  32
-#define QTRACE_MAX_FPRS_OUT   3
-#define QTRACE_MAX_SPRS_OUT   4
-#define QTRACE_MAX_VMXRS_OUT  3
-#define QTRACE_MAX_VSXRS_OUT  3 
-
-struct qtrace_register_info {
-	uint16_t index;
-	uint64_t value;
-};
-
 #define RIC(insn)		(((insn) >> 18) & 0x3)
 #define PRS(insn)		(((insn) >> 17) & 0x1)
 #define R(insn)			(((insn) >> 16) & 0x1)
@@ -400,20 +389,6 @@ struct qtrace_register_info {
 #define AP(rb)			(((rb) >> 5) & 0x7)
 #define EPN(rb)			(((rb) >> 12) & 0x7ffffffffffffULL)
 #define SET(rb)			(((rb) >> 12) & 0xfffU)
-
-struct qtrace_reg_state {
-	uint8_t nr_gprs_in;
-	uint8_t nr_fprs_in;
-	uint8_t nr_vmxs_in;
-	uint8_t nr_vsxs_in;
-	uint8_t nr_sprs_in;
-	uint8_t nr_gprs_out;
-	uint8_t nr_fprs_out;
-	uint8_t nr_vmxs_out;
-	uint8_t nr_vsxs_out;
-	uint8_t nr_sprs_out;
-	struct qtrace_register_info gprs_out[QTRACE_MAX_GPRS_OUT];
-};
 
 static bool annotate_tlbie(struct qtreader_state *state, struct qtrace_record *record, struct qtrace_reg_state *regs)
 {
@@ -482,10 +457,42 @@ static bool annotate_tlbie(struct qtreader_state *state, struct qtrace_record *r
 	return true;
 }
 
-static bool do_parse_regs(struct qtreader_state *state, struct qtrace_reg_state *regs)
+static bool save_reg(struct qtreader_state *state, struct qtrace_reg_info *reg,
+					 int nr_regs, int reg_type)
 {
 	int i;
 
+	switch (reg_type) {
+	case GPR:
+	case FPR:
+		for (i = 0; i < nr_regs; i++) {
+			reg[i].index = GET8(state);
+			reg[i].value = GET64(state);
+		}
+		break;
+	case VMX:
+	case VSX:
+		for (i = 0; i < nr_regs; i++) {
+			reg[i].index = GET16(state);
+			reg[i].value = GET64(state);
+			reg[i].value2 = GET64(state);
+		}
+		break;
+	case SPR:
+		for (i = 0; i < nr_regs; i++) {
+			reg[i].index = GET16(state);
+			reg[i].value = GET64(state);
+		}
+		break;
+	}
+	return true;
+
+err:
+	return false;
+}
+
+static bool do_parse_regs(struct qtreader_state *state, struct qtrace_reg_state *regs)
+{
 	memset(regs, 0, sizeof(*regs));
 
 	regs->nr_gprs_in = GET8(state);
@@ -506,24 +513,17 @@ static bool do_parse_regs(struct qtreader_state *state, struct qtrace_reg_state 
 		regs->nr_vsxs_out = 0;
 	regs->nr_sprs_out = GET8(state);
 
-	state->ptr += regs->nr_gprs_in * (sizeof(uint8_t) + sizeof(uint64_t));
-	state->ptr += regs->nr_fprs_in * (sizeof(uint8_t) + sizeof(uint64_t));
-	state->ptr += regs->nr_vmxs_in * (sizeof(uint16_t) + sizeof(uint64_t) * 2);
-	state->ptr += regs->nr_vsxs_in * (sizeof(uint16_t) + sizeof(uint64_t) * 2);
-	state->ptr += regs->nr_sprs_in * (sizeof(uint16_t) + sizeof(uint64_t));
+	save_reg(state, regs->gprs_in, regs->nr_gprs_in, GPR);
+	save_reg(state, regs->fprs_in, regs->nr_fprs_in, FPR);
+	save_reg(state, regs->vmxs_in, regs->nr_vmxs_in, VMX);
+	save_reg(state, regs->vsxs_in, regs->nr_vsxs_in, VSX);
+	save_reg(state, regs->sprs_in, regs->nr_sprs_in, SPR);
 
-	if (!(state->flags & QTREADER_FLAGS_TLBIE)) {
-		state->ptr += regs->nr_gprs_out * (sizeof(uint8_t) + sizeof(uint64_t));
-	} else {
-		for (i = 0; i < regs->nr_gprs_out; i++) {
-			regs->gprs_out[i].index = GET8(state);
-			regs->gprs_out[i].value = GET64(state);
-		}
-	}
-	state->ptr += regs->nr_fprs_out * (sizeof(uint8_t) + sizeof(uint64_t));
-	state->ptr += regs->nr_vmxs_out * (sizeof(uint16_t) + sizeof(uint64_t) * 2);
-	state->ptr += regs->nr_vsxs_out * (sizeof(uint16_t) + sizeof(uint64_t) * 2);
-	state->ptr += regs->nr_sprs_out * (sizeof(uint16_t) + sizeof(uint64_t));
+	save_reg(state, regs->gprs_out, regs->nr_gprs_out, GPR);
+	save_reg(state, regs->fprs_out, regs->nr_fprs_out, FPR);
+	save_reg(state, regs->vmxs_out, regs->nr_vmxs_out, VMX);
+	save_reg(state, regs->vsxs_out, regs->nr_vsxs_out, VSX);
+	save_reg(state, regs->sprs_out, regs->nr_sprs_out, SPR);
 
 	if (state->ptr > (state->mem + state->size))
 		goto err;
@@ -536,9 +536,7 @@ err:
 
 bool qtreader_next_record(struct qtreader_state *state, struct qtrace_record *record)
 {
-	struct qtrace_reg_state regs;
 	uint16_t flags, flags2 = 0, flags3 = 0;
-
 	memset(record, 0, sizeof(*record));
 
 	/*
@@ -712,10 +710,11 @@ bool qtreader_next_record(struct qtreader_state *state, struct qtrace_record *re
 		state->next_insn_rpn_valid = false;
 	}
 
-
+	/* Registers present */
 	if (flags & QTRACE_REGISTER_TRACE_PRESENT) {
-		if (!do_parse_regs(state, &regs))
+		if (!do_parse_regs(state, &record->regs))
 			goto err;
+		record->regs_valid = true;
 	}
 
 	if (flags2 & QTRACE_SEQUENTIAL_INSTRUCTION_RPN_PRESENT) {
@@ -773,7 +772,7 @@ bool qtreader_next_record(struct qtreader_state *state, struct qtrace_record *re
 		SKIP(state, 1);
 
 	if (state->flags & QTREADER_FLAGS_TLBIE) {
-		if (!annotate_tlbie(state, record, &regs))
+		if (!annotate_tlbie(state, record, &record->regs))
 			goto err;
 	}
 
