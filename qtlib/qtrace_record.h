@@ -72,6 +72,14 @@ struct qtrace_record {
 	bool conditional_branch;
 
 	uint32_t flags3;
+
+	bool nr_radix_insn_valid;
+	uint32_t nr_radix_insn_ptes;
+	uint64_t *radix_insn_ptes;
+	bool nr_radix_data_valid;
+	uint32_t nr_radix_data_ptes;
+	uint64_t *radix_data_ptes;
+
 	/*
 	 * The rest of the fields are populated by qtreader if enabled,
 	 * but are not required by qtwriter.

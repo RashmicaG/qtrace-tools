@@ -48,6 +48,18 @@ static int fallocate_or_ftruncate(int fd, size_t size)
  * with fallocate/mremap.
  */
 #define BUFFER	(128*1024)
+static unsigned int get_radix_insn_ptes(uint16_t flags3)
+{
+	unsigned int host_mode;
+
+	host_mode = (flags3 >> QTRACE_HOST_XLATE_MODE_INSTRUCTION_SHIFT) &
+			QTRACE_XLATE_MODE_MASK;
+
+	if (host_mode == QTRACE_XLATE_MODE_RADIX) {
+		return NR_RADIX_PTES;
+	}
+	return 0;
+}
 
 bool qtwriter_open(struct qtwriter_state *state, char *filename,
 		   uint32_t magic)
@@ -120,6 +132,21 @@ static inline void skip(struct qtwriter_state *state, uint64_t val)
 		state->ptr += val;
 }
 
+static bool parse_radix(struct qtwriter_state *state, unsigned int nr, uint64_t *ptes)
+{
+	unsigned long i;
+	for (i = 0; i < nr; i++) {
+		if (ptes) {
+			put64(state, ptes[i]);
+		}
+		else {
+			put64(state, 0);
+		}
+	}
+
+	return true;
+}
+
 /*
  * The header contains the address of the first instruction, so we can't
  * write it until we get the first trace entry.
@@ -185,6 +212,12 @@ static bool qtwriter_write_header(struct qtwriter_state *state,
 	if (state->vsid_present) {
 		hdr_flags |= QTRACE_HDR_IAR_VSID_PRESENT;
 		skip(state, 7);
+	}
+
+	if ((hdr_flags & QTRACE_HDR_IAR_RPN_PRESENT) && IS_RADIX(flags2)) {
+		unsigned int nr = get_radix_insn_ptes(flags3);
+		if (parse_radix(state, nr, NULL) == false)
+			return false;
 	}
 
 	if (state->next_insn_rpn_valid)
@@ -342,7 +375,7 @@ bool qtwriter_write_record(struct qtwriter_state *state,
 		return true;
 	}
 
-	flags = 0;
+	flags = QTRACE_EXTENDED_FLAGS_PRESENT;
 	flags2 = 0;
 	flags3 = state->prev_record.flags3;
 
@@ -378,7 +411,9 @@ bool qtwriter_write_record(struct qtwriter_state *state,
 		flags |= QTRACE_REGISTER_TRACE_PRESENT;
 
 	/* Setup flags2 */
-	if (flags3)
+	if (state->prev_record.nr_radix_data_valid || 
+		state->prev_record.nr_radix_insn_valid ||
+		flags3)
 		flags2 |= QTRACE_EXTENDED_FLAGS2_PRESENT;
 
 	if (record->insn_page_shift_valid && iar_change)
@@ -424,6 +459,13 @@ bool qtwriter_write_record(struct qtwriter_state *state,
 	if (flags & QTRACE_DATA_ADDRESS_PRESENT)
 		put64(state, state->prev_record.data_addr);
 
+	/* RADIX 1 */
+	if ((flags & QTRACE_DATA_RPN_PRESENT) && IS_RADIX(flags2)) {
+		unsigned int nr = state->prev_record.nr_radix_data_ptes;
+		if (parse_radix(state, nr, state->prev_record.radix_data_ptes) == false)
+			goto err;
+	}
+
 	if (flags & QTRACE_DATA_RPN_PRESENT) {
 		uint8_t pshift = 16;
 		if (state->prev_record.data_page_shift_valid)
@@ -434,6 +476,15 @@ bool qtwriter_write_record(struct qtwriter_state *state,
 
 	if (iar_change)
 		put64(state, record->insn_addr);
+
+
+	/* RADIX 2 */
+	if ((flags & QTRACE_IAR_RPN_PRESENT) && IS_RADIX(flags2)) {
+
+		unsigned int nr_ptes = state->prev_record.nr_radix_insn_ptes;
+		if (parse_radix(state, nr_ptes, state->prev_record.radix_insn_ptes) == false)
+			goto err;
+	}
 
 	if (record->insn_ra_valid && iar_change) {
 		uint8_t pshift = 16;

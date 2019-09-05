@@ -657,11 +657,16 @@ bool qtreader_next_record(struct qtreader_state *state, struct qtrace_record *re
 	if (flags & QTRACE_DATA_VSID_PRESENT)
 		SKIP(state, 7);
 
+	/* RADIX 1 */
 	if ((flags & QTRACE_DATA_RPN_PRESENT) && IS_RADIX(flags2)) {
 		unsigned int radix_nr_data_ptes = get_radix_data_ptes(flags3);
+		record->nr_radix_data_ptes = radix_nr_data_ptes;
+		record->nr_radix_data_valid = true;
 
-		if (parse_radix(state, radix_nr_data_ptes, NULL) == false)
+		uint64_t *ptes = malloc(radix_nr_data_ptes * sizeof(uint64_t));
+		if (parse_radix(state, radix_nr_data_ptes, ptes) == false)
 			goto err;
+		record->radix_data_ptes = ptes;
 	}
 
 	if (flags & QTRACE_DATA_RPN_PRESENT) {
@@ -696,11 +701,16 @@ bool qtreader_next_record(struct qtreader_state *state, struct qtrace_record *re
 	if (flags & QTRACE_IAR_VSID_PRESENT)
 		SKIP(state, 7);
 
+	/* RADIX 2 */
 	if ((flags & QTRACE_IAR_RPN_PRESENT) && IS_RADIX(flags2)) {
 		unsigned int radix_nr_insn_ptes = get_radix_insn_ptes(flags3);
+		record->nr_radix_insn_ptes = radix_nr_insn_ptes;
+		record->nr_radix_insn_valid = true;
 
-		if (parse_radix(state, radix_nr_insn_ptes, NULL) == false)
+		uint64_t *ptes = malloc(radix_nr_insn_ptes * sizeof(uint64_t));
+		if (parse_radix(state, radix_nr_insn_ptes, ptes) == false)
 			goto err;
+		record->radix_insn_ptes = ptes;
 	}
 
 	if (flags & QTRACE_IAR_RPN_PRESENT) {
