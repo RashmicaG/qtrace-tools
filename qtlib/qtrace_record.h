@@ -77,6 +77,8 @@ struct qtrace_record {
 	uint8_t processor;
 	bool err_present;
 	uint8_t err;
+	bool insn_rpn_valid;
+	uint32_t insn_rpn;
 
 	bool nr_radix_insn_valid;
 	uint32_t nr_radix_insn_ptes;

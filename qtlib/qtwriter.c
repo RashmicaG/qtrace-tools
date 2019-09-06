@@ -428,6 +428,9 @@ bool qtwriter_write_record(struct qtwriter_state *state,
 	if (state->prev_record.err_present)
 		flags2 |= QTRACE_TRACE_ERROR_CODE_PRESENT;
 
+	if (state->prev_record.insn_rpn_valid)
+		flags2 |= QTRACE_SEQUENTIAL_INSTRUCTION_RPN_PRESENT;
+
 	if (flags2)
 		flags |= QTRACE_EXTENDED_FLAGS_PRESENT;
 
@@ -514,11 +517,17 @@ bool qtwriter_write_record(struct qtwriter_state *state,
 	if (flags & QTRACE_REGISTER_TRACE_PRESENT)
 		write_regs(state, &state->prev_record.regs, state->prev_record.tlbie);
 
-	/* XXX Add sequential insn rpn and sequential page size */
+	/* Sequential insn rpn */
+	if (flags2 & QTRACE_SEQUENTIAL_INSTRUCTION_RPN_PRESENT)
+		put32(state, state->prev_record.insn_rpn);
 
 	if (flags2 & QTRACE_TRACE_ERROR_CODE_PRESENT)
 		put8(state, state->prev_record.err);
 
+	/* Sequential insn page size */
+	if (flags2 & QTRACE_SEQUENTIAL_INSTRUCTION_PAGE_SIZE_PRESENT) {
+		put8(state, state->next_insn_page_shift);
+	}
 
 	if (record->insn_page_shift_valid && iar_change)
 		put8(state, record->insn_page_shift);

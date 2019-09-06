@@ -734,8 +734,11 @@ bool qtreader_next_record(struct qtreader_state *state, struct qtrace_record *re
 		record->regs_valid = true;
 	}
 
+	/* Sequential RPN */
 	if (flags2 & QTRACE_SEQUENTIAL_INSTRUCTION_RPN_PRESENT) {
 		uint32_t insn_rpn = GET32(state);
+		record->insn_rpn = insn_rpn;
+		record->insn_rpn_valid = true;
 		if (!state->next_insn_rpn_valid) {
 			state->next_insn_rpn_valid = true;
 			state->next_insn_rpn = insn_rpn;
