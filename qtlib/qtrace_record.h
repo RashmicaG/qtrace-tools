@@ -70,6 +70,7 @@ struct qtrace_record {
 
 	bool branch;
 	bool conditional_branch;
+	bool max_inst_depth;
 
 	uint32_t flags3;
 

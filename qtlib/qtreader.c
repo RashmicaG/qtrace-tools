@@ -624,6 +624,7 @@ bool qtreader_next_record(struct qtreader_state *state, struct qtrace_record *re
 	if (flags & QTRACE_NODE_PRESENT)
 		GET8(state);
 
+	/* Termination present */
 	if (flags & QTRACE_TERMINATION_PRESENT) {
 		uint8_t termination_code;
 
@@ -631,6 +632,9 @@ bool qtreader_next_record(struct qtreader_state *state, struct qtrace_record *re
 
 		GET8(state);
 		termination_code = GET8(state);
+
+		if (termination_code == QTRACE_EXCEEDED_MAX_INST_DEPTH)
+			record->max_inst_depth = true;
 
 		if ((termination_code == QTRACE_EXCEEDED_MAX_INST_DEPTH) ||
 		    (termination_code == QTRACE_EXCEEDED_MAX_BRANCH_DEPTH))

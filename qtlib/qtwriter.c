@@ -435,11 +435,14 @@ bool qtwriter_write_record(struct qtwriter_state *state,
 	if (flags2 & QTRACE_EXTENDED_FLAGS2_PRESENT)
 		put16(state, flags3);
 
-	if (is_branch) {
-		uint8_t termination_code = 0;
 
-		/* node */
+
+	if (flags & QTRACE_NODE_PRESENT)
 		put8(state, 0);
+
+	/* Termination present */
+	if (flags & QTRACE_TERMINATION_PRESENT) {
+		uint8_t termination_code = 0;
 
 		/* termination node */
 		put8(state, 0);
@@ -447,8 +450,10 @@ bool qtwriter_write_record(struct qtwriter_state *state,
 		/* termination code */
 		if (state->prev_record.branch) {
 			if (state->prev_record.conditional_branch == true)
-				//termination_code = QTRACE_EXCEEDED_MAX_INST_DEPTH;
-				termination_code = QTRACE_EXCEEDED_MAX_BRANCH_DEPTH;
+				if (state->prev_record.max_inst_depth == true)
+					termination_code = QTRACE_EXCEEDED_MAX_INST_DEPTH;
+				else
+					termination_code = QTRACE_EXCEEDED_MAX_BRANCH_DEPTH;
 			else
 				termination_code = QTRACE_UNCONDITIONAL_BRANCH;
 		}
