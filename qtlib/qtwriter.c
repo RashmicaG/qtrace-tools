@@ -410,6 +410,9 @@ bool qtwriter_write_record(struct qtwriter_state *state,
 	if (state->prev_record.regs_valid)
 		flags |= QTRACE_REGISTER_TRACE_PRESENT;
 
+	if (state->prev_record.processor_valid)
+		flags |= QTRACE_PROCESSOR_PRESENT;
+
 	/* Setup flags2 */
 	if (state->prev_record.nr_radix_data_valid || 
 		state->prev_record.nr_radix_insn_valid ||
@@ -460,6 +463,10 @@ bool qtwriter_write_record(struct qtwriter_state *state,
 
 		put8(state, termination_code);
 	}
+
+	/* Processor present */
+	if (flags & QTRACE_PROCESSOR_PRESENT)
+		put8(state, record->processor);
 
 	if (flags & QTRACE_DATA_ADDRESS_PRESENT)
 		put64(state, state->prev_record.data_addr);

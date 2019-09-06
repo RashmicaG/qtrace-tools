@@ -650,8 +650,11 @@ bool qtreader_next_record(struct qtreader_state *state, struct qtrace_record *re
 			annotate_branch(record);
 	}
 
-	if (flags & QTRACE_PROCESSOR_PRESENT)
-		GET8(state);
+	/* Processor present */
+	if (flags & QTRACE_PROCESSOR_PRESENT) {
+		record->processor = GET8(state);
+		record->processor_valid = true;
+	}
 
 	if (flags & QTRACE_DATA_ADDRESS_PRESENT) {
 		record->data_addr_valid = true;
