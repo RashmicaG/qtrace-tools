@@ -478,6 +478,10 @@ bool qtwriter_write_record(struct qtwriter_state *state,
 	if (flags & QTRACE_DATA_ADDRESS_PRESENT)
 		put64(state, state->prev_record.data_addr);
 
+	/* VSID */
+	if (flags & QTRACE_DATA_VSID_PRESENT)
+		skip(state, 7);
+
 	/* RADIX 1 */
 	if ((flags & QTRACE_DATA_RPN_PRESENT) && IS_RADIX(flags2)) {
 		unsigned int nr = state->prev_record.nr_radix_data_ptes;
@@ -498,6 +502,9 @@ bool qtwriter_write_record(struct qtwriter_state *state,
 	if (iar_change)
 		put64(state, record->insn_addr);
 
+	/* VSID */
+	if (flags & QTRACE_IAR_VSID_PRESENT)
+		skip(state, 7);
 
 	/* RADIX 2 */
 	if ((flags & QTRACE_IAR_RPN_PRESENT) && IS_RADIX(flags2)) {
@@ -539,6 +546,12 @@ bool qtwriter_write_record(struct qtwriter_state *state,
 
 	if (flags2 & QTRACE_DATA_PAGE_SIZE_PRESENT)
 		put8(state, state->prev_record.data_page_shift);
+
+	if (flags2 & QTRACE_INSTRUCTION_GPAGE_SIZE_PRESENT)
+		skip(state, 1);
+
+	if (flags2 & QTRACE_DATA_GPAGE_SIZE_PRESENT)
+		skip(state, 1);
 
 	memcpy(&state->prev_record, record, sizeof(*record));
 
