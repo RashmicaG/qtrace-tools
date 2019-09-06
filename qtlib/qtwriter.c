@@ -114,6 +114,12 @@ static inline void put64(struct qtwriter_state *state, uint64_t val)
 	state->ptr += sizeof(*p);
 }
 
+static inline void skip(struct qtwriter_state *state, uint64_t val)
+{
+	if (state->ptr + val <= (state->mem + state->size))
+		state->ptr += val;
+}
+
 /*
  * The header contains the address of the first instruction, so we can't
  * write it until we get the first trace entry.
