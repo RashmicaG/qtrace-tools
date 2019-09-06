@@ -177,6 +177,15 @@ bool qtwriter_write_record(struct qtwriter_state *state,
 	bool iar_change = false;
 	bool is_branch = false;
 
+   /*
+	* We sometimes see two file headers at the start of a mambo trace, or
+	* a header in the middle of a trace. These are identified by a null
+	* instruction and we skip over them.
+	*/
+	if (!record->insn_addr) {
+		qtwriter_write_header(state, record);
+	}
+
 	/* Do we need to allocate more space? */
 	if ((state->ptr + BUFFER) > (state->mem + state->size)) {
 		void *p;
