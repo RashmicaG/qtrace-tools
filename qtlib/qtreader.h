@@ -27,6 +27,7 @@ struct qtreader_state {
 	unsigned int verbose;
 	int fd;
 	uint64_t flags;
+	uint16_t header_comment;
 
 	bool insn_rpn_valid;
 	uint32_t insn_rpn;
@@ -37,6 +38,11 @@ struct qtreader_state {
 	bool data_page_shift_valid;
 	uint32_t data_page_shift;
 
+	uint16_t flags3;
+
+	bool vsid_present;
+	bool ptcr_present;
+	uint32_t ptcr;
 	bool lpid_present;
 	uint32_t lpid;
 	bool pid_present;

@@ -127,17 +127,33 @@ static inline void skip(struct qtwriter_state *state, uint64_t val)
 static bool qtwriter_write_header(struct qtwriter_state *state,
 				  struct qtrace_record *record)
 {
-	uint64_t hdr_flags;
-
+	uint16_t flags = 0, flags2 = 0, flags3 = 0, hdr_flags = 0;
 	/* Header is identified by a zero instruction */
 	put32(state, 0);
 
-	put16(state, QTRACE_EXTENDED_FLAGS_PRESENT);
+	flags = QTRACE_EXTENDED_FLAGS_PRESENT;
+	put16(state, flags);
 
-	put16(state, QTRACE_FILE_HEADER_PRESENT);
+	flags2 = QTRACE_FILE_HEADER_PRESENT;
+	if (state->flags3) {
+		flags3 = state->flags3;
+		flags2 |= QTRACE_EXTENDED_FLAGS2_PRESENT;
+	}
+	put16(state, flags2);
+
+	if (state->ptcr_present)
+		flags3 |= QTRACE_PTCR_PRESENT;
+
+	if (state->lpid_present)
+		flags3 |= QTRACE_LPID_PRESENT;
+
+	if (state->pid_present)
+		flags3 |= QTRACE_PID_PRESENT;
+
+	if (flags3)
+		put16(state, state->flags3);
 
 	hdr_flags = QTRACE_HDR_IAR_PRESENT;
-
 	if (record->insn_ra_valid)
 		hdr_flags |= QTRACE_HDR_IAR_RPN_PRESENT;
 
@@ -150,6 +166,12 @@ static bool qtwriter_write_header(struct qtwriter_state *state,
 	if (state->magic)
 		hdr_flags |= QTRACE_HDR_MAGIC_NUMBER_PRESENT;
 
+	if (state->header_comment)
+		hdr_flags |= QTRACE_HDR_COMMENT_PRESENT;
+
+	if (state->next_insn_rpn_valid)
+		hdr_flags |= QTRACE_HDR_IAR_RPN_PRESENT;
+
 	put16(state, hdr_flags);
 
 	if (state->magic)
@@ -160,19 +182,47 @@ static bool qtwriter_write_header(struct qtwriter_state *state,
 
 	put64(state, record->insn_addr);
 
-	if (record->insn_ra_valid) {
-		uint8_t pshift = 16;
-
-		if (record->insn_page_shift_valid)
-			pshift = record->insn_page_shift;
-
-		put32(state, record->insn_ra >> pshift);
+	if (state->vsid_present) {
+		hdr_flags |= QTRACE_HDR_IAR_VSID_PRESENT;
+		skip(state, 7);
 	}
 
-	if (record->insn_page_shift_valid)
-		put8(state, record->insn_page_shift);
+	if (state->next_insn_rpn_valid)
+		put32(state, state->next_insn_rpn);
+
+	if (state->next_insn_page_shift_valid)
+		put8(state, state->next_insn_page_shift);
+
+	if (hdr_flags & QTRACE_HDR_IAR_GPAGE_SIZE_PRESENT)
+		skip(state, 1);
+
+	if (flags3 & QTRACE_PTCR_PRESENT)
+		put64(state, state->ptcr);
+
+	if (flags3 & QTRACE_LPID_PRESENT)
+		put64(state, state->lpid);
+
+	if (flags3 & QTRACE_PID_PRESENT)
+		put32(state, state->pid);
+
+	/*
+	 * We should either write the header comment or just write the comment
+	 * length as zero. This is to make the byte comparision of a trace parsed
+	 * by qtreader and qtwriter with the original easier.
+	 */
+	if (state->header_comment) {
+		uint16_t len = state->header_comment;
+		put16(state, len);
+		if (state->ptr + len > (state->mem + state->size))
+			goto err;
+
+		state->ptr += len;
+	}
 
 	return true;
+
+err:
+	return false;
 }
 
 bool qtwriter_write_record(struct qtwriter_state *state,

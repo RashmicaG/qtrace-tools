@@ -178,8 +178,10 @@ static bool qtreader_parse_header(struct qtreader_state *state)
 		goto err;
 	}
 
-	if (flags2 & QTRACE_EXTENDED_FLAGS2_PRESENT)
+	if (flags2 & QTRACE_EXTENDED_FLAGS2_PRESENT) {
 		flags3 = GET16(state);
+		state->flags3 = flags3;
+	}
 
 	hdr_flags = GET16(state);
 
@@ -207,12 +209,15 @@ static bool qtreader_parse_header(struct qtreader_state *state)
 	if (hdr_flags & QTRACE_HDR_IAR_PRESENT)
 		state->next_insn_addr = GET64(state);
 
-	if (hdr_flags & QTRACE_HDR_IAR_VSID_PRESENT)
+	if (hdr_flags & QTRACE_HDR_IAR_VSID_PRESENT) {
 		SKIP(state, 7);
+		state->vsid_present = true;
+	}
 
 	if ((hdr_flags & QTRACE_HDR_IAR_RPN_PRESENT) && IS_RADIX(flags2)) {
 		unsigned int nr = get_radix_insn_ptes(flags3);
 
+		// TODO save ptes
 		if (parse_radix(state, nr, NULL) == false)
 			goto err;
 	}
@@ -232,8 +237,10 @@ static bool qtreader_parse_header(struct qtreader_state *state)
 	if (hdr_flags & QTRACE_HDR_IAR_GPAGE_SIZE_PRESENT)
 		SKIP(state, 1);
 
-	if (flags3 & QTRACE_PTCR_PRESENT)
-		GET64(state);
+	if (flags3 & QTRACE_PTCR_PRESENT) {
+		state->ptcr_present = true;
+		state->ptcr = GET64(state);
+	}
 
 	if (flags3 & QTRACE_LPID_PRESENT) {
 		state->lpid_present = true;
@@ -252,6 +259,8 @@ static bool qtreader_parse_header(struct qtreader_state *state)
 			goto err;
 
 		state->ptr += len;
+		// TODO save hdr comment
+		state->header_comment = len;
 	}
 
 	return true;
