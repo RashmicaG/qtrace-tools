@@ -656,11 +656,13 @@ bool qtreader_next_record(struct qtreader_state *state, struct qtrace_record *re
 		record->processor_valid = true;
 	}
 
+	/* Data address present */
 	if (flags & QTRACE_DATA_ADDRESS_PRESENT) {
 		record->data_addr_valid = true;
 		record->data_addr = GET64(state);
 	}
 
+	/* VSID */
 	if (flags & QTRACE_DATA_VSID_PRESENT)
 		SKIP(state, 7);
 
@@ -676,6 +678,7 @@ bool qtreader_next_record(struct qtreader_state *state, struct qtrace_record *re
 		record->radix_data_ptes = ptes;
 	}
 
+	/* DATA RPN */
 	if (flags & QTRACE_DATA_RPN_PRESENT) {
 		state->data_rpn_valid = true;
 		state->data_rpn = GET32(state);
@@ -683,12 +686,14 @@ bool qtreader_next_record(struct qtreader_state *state, struct qtrace_record *re
 		state->data_rpn_valid = false;
 	}
 
+	/* IAR PRESENT */
 	if (flags & QTRACE_IAR_PRESENT) {
 		state->next_insn_addr = GET64(state);
 	} else {
 		state->next_insn_addr += sizeof(uint32_t);
 	}
 
+	/* Set next insn */
 	record->next_insn_addr = state->next_insn_addr;
 
 	if (flags & QTRACE_TERMINATION_PRESENT) {
@@ -705,6 +710,7 @@ bool qtreader_next_record(struct qtreader_state *state, struct qtrace_record *re
 		record->conditional_branch = true;
 	}
 
+	/* VSID */
 	if (flags & QTRACE_IAR_VSID_PRESENT)
 		SKIP(state, 7);
 
@@ -720,6 +726,7 @@ bool qtreader_next_record(struct qtreader_state *state, struct qtrace_record *re
 		record->radix_insn_ptes = ptes;
 	}
 
+	/* IAR RPN PRESENT*/
 	if (flags & QTRACE_IAR_RPN_PRESENT) {
 		state->next_insn_rpn_valid = true;
 		state->next_insn_rpn = GET32(state);
@@ -746,6 +753,7 @@ bool qtreader_next_record(struct qtreader_state *state, struct qtrace_record *re
 	}
 
 	/* FIXME */
+	/* Error code */
 	if (flags2 & QTRACE_TRACE_ERROR_CODE_PRESENT) {
 		record->err = GET8(state);
 		record->err_present = true;

@@ -474,6 +474,7 @@ bool qtwriter_write_record(struct qtwriter_state *state,
 	if (flags & QTRACE_PROCESSOR_PRESENT)
 		put8(state, record->processor);
 
+	/* Data address present */
 	if (flags & QTRACE_DATA_ADDRESS_PRESENT)
 		put64(state, state->prev_record.data_addr);
 
@@ -484,6 +485,7 @@ bool qtwriter_write_record(struct qtwriter_state *state,
 			goto err;
 	}
 
+	/* DATA RPN */
 	if (flags & QTRACE_DATA_RPN_PRESENT) {
 		uint8_t pshift = 16;
 		if (state->prev_record.data_page_shift_valid)
@@ -492,6 +494,7 @@ bool qtwriter_write_record(struct qtwriter_state *state,
 		put32(state, state->prev_record.data_ra >> pshift);
 	}
 
+	/* IAR PRESENT */
 	if (iar_change)
 		put64(state, record->insn_addr);
 
@@ -504,6 +507,7 @@ bool qtwriter_write_record(struct qtwriter_state *state,
 			goto err;
 	}
 
+	/* IAR RPN PRESENT*/
 	if (record->insn_ra_valid && iar_change) {
 		uint8_t pshift = 16;
 
@@ -521,6 +525,7 @@ bool qtwriter_write_record(struct qtwriter_state *state,
 	if (flags2 & QTRACE_SEQUENTIAL_INSTRUCTION_RPN_PRESENT)
 		put32(state, state->prev_record.insn_rpn);
 
+	/* Error code */
 	if (flags2 & QTRACE_TRACE_ERROR_CODE_PRESENT)
 		put8(state, state->prev_record.err);
 
