@@ -743,8 +743,10 @@ bool qtreader_next_record(struct qtreader_state *state, struct qtrace_record *re
 	}
 
 	/* FIXME */
-	if (flags2 & QTRACE_TRACE_ERROR_CODE_PRESENT)
-		GET8(state);
+	if (flags2 & QTRACE_TRACE_ERROR_CODE_PRESENT) {
+		record->err = GET8(state);
+		record->err_present = true;
+	}
 
 	if (flags2 & QTRACE_SEQUENTIAL_INSTRUCTION_PAGE_SIZE_PRESENT) {
 		uint8_t insn_page_shift = GET8(state);
