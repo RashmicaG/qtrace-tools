@@ -282,9 +282,6 @@ bool qtwriter_write_record(struct qtwriter_state *state,
 	flags2 = 0;
 	flags3 = state->prev_record.flags3;
 
-	if (flags3)
-		flags2 |= QTRACE_EXTENDED_FLAGS2_PRESENT;
-
 	/* Some sort of branch */
 	if (state->prev_record.branch == true ||
 	    record->insn_addr != (state->prev_record.insn_addr + 4))
@@ -293,23 +290,18 @@ bool qtwriter_write_record(struct qtwriter_state *state,
 	if ((record->insn_addr != (state->prev_record.insn_addr + 4)))
 		iar_change = true;
 
+	/* Setup flags */
 	if (state->prev_record.data_addr_valid)
 		flags |= QTRACE_DATA_ADDRESS_PRESENT;
 
 	if (state->prev_record.data_ra_valid)
 		flags |= QTRACE_DATA_RPN_PRESENT;
 
-	if (state->prev_record.data_page_shift_valid)
-		flags2 |= QTRACE_DATA_PAGE_SIZE_PRESENT;
-
 	if (record->insn_ra_valid && iar_change)
 		flags |= QTRACE_IAR_RPN_PRESENT;
 
-	if (record->insn_page_shift_valid && iar_change)
-		flags2 |= QTRACE_IAR_PAGE_SIZE_PRESENT;
-
-	if (flags2)
-		flags |= QTRACE_EXTENDED_FLAGS_PRESENT;
+	if (state->prev_record.data_ra_valid)
+		flags |= QTRACE_DATA_RPN_PRESENT;
 
 	if (is_branch) {
 		flags |= QTRACE_NODE_PRESENT | QTRACE_TERMINATION_PRESENT;
@@ -317,6 +309,19 @@ bool qtwriter_write_record(struct qtwriter_state *state,
 		if (iar_change)
 			flags |= (QTRACE_IAR_CHANGE_PRESENT | QTRACE_IAR_PRESENT);
 	}
+
+	/* Setup flags2 */
+	if (flags3)
+		flags2 |= QTRACE_EXTENDED_FLAGS2_PRESENT;
+
+	if (record->insn_page_shift_valid && iar_change)
+		flags2 |= QTRACE_IAR_PAGE_SIZE_PRESENT;
+
+	if (state->prev_record.data_page_shift_valid)
+		flags2 |= QTRACE_DATA_PAGE_SIZE_PRESENT;
+
+	if (flags2)
+		flags |= QTRACE_EXTENDED_FLAGS_PRESENT;
 
 	put32(state, state->prev_record.insn);
 
@@ -349,12 +354,11 @@ bool qtwriter_write_record(struct qtwriter_state *state,
 		put8(state, termination_code);
 	}
 
-	if (state->prev_record.data_addr_valid)
+	if (flags & QTRACE_DATA_ADDRESS_PRESENT)
 		put64(state, state->prev_record.data_addr);
 
-	if (state->prev_record.data_ra_valid) {
+	if (flags & QTRACE_DATA_RPN_PRESENT) {
 		uint8_t pshift = 16;
-
 		if (state->prev_record.data_page_shift_valid)
 			pshift = state->prev_record.data_page_shift;
 
@@ -378,12 +382,14 @@ bool qtwriter_write_record(struct qtwriter_state *state,
 	if (record->insn_page_shift_valid && iar_change)
 		put8(state, record->insn_page_shift);
 
-	if (state->prev_record.data_page_shift_valid)
+	if (flags2 & QTRACE_DATA_PAGE_SIZE_PRESENT)
 		put8(state, state->prev_record.data_page_shift);
 
 	memcpy(&state->prev_record, record, sizeof(*record));
 
 	return true;
+err:
+	return false;
 }
 
 #if 0
