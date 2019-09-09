@@ -31,6 +31,7 @@ struct qtrace_record {
 	bool branch;
 	bool conditional_branch;
 
+	uint32_t flags3;
 	/*
 	 * The rest of the fields are populated by qtreader if enabled,
 	 * but are not required by qtwriter.

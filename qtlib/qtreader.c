@@ -581,12 +581,13 @@ bool qtreader_next_record(struct qtreader_state *state, struct qtrace_record *re
 	record->insn = GET32(state);
 
 	flags = GET16(state);
-
 	if (flags & QTRACE_EXTENDED_FLAGS_PRESENT) {
 		flags2 = GET16(state);
 
-		if (flags2 & QTRACE_EXTENDED_FLAGS2_PRESENT)
+		if (flags2 & QTRACE_EXTENDED_FLAGS2_PRESENT) {
 			flags3 = GET16(state);
+			record->flags3 = flags3;
+		}
 	}
 
 	if (flags & UNHANDLED_FLAGS) {

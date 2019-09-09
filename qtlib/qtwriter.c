@@ -174,6 +174,7 @@ bool qtwriter_write_record(struct qtwriter_state *state,
 {
 	uint16_t flags;
 	uint16_t flags2;
+	uint16_t flags3;
 	bool iar_change = false;
 	bool is_branch = false;
 
@@ -221,8 +222,12 @@ bool qtwriter_write_record(struct qtwriter_state *state,
 		return true;
 	}
 
-	flags = QTRACE_EXTENDED_FLAGS_PRESENT;
+	flags = 0;
 	flags2 = 0;
+	flags3 = state->prev_record.flags3;
+
+	if (flags3)
+		flags2 |= QTRACE_EXTENDED_FLAGS2_PRESENT;
 
 	/* Some sort of branch */
 	if (state->prev_record.branch == true ||
@@ -247,6 +252,9 @@ bool qtwriter_write_record(struct qtwriter_state *state,
 	if (record->insn_page_shift_valid && iar_change)
 		flags2 |= QTRACE_IAR_PAGE_SIZE_PRESENT;
 
+	if (flags2)
+		flags |= QTRACE_EXTENDED_FLAGS_PRESENT;
+
 	if (is_branch) {
 		flags |= QTRACE_NODE_PRESENT | QTRACE_TERMINATION_PRESENT;
 
@@ -258,7 +266,11 @@ bool qtwriter_write_record(struct qtwriter_state *state,
 
 	put16(state, flags);
 
-	put16(state, flags2);
+	if (flags & QTRACE_EXTENDED_FLAGS_PRESENT)
+		put16(state, flags2);
+
+	if (flags2 & QTRACE_EXTENDED_FLAGS2_PRESENT)
+		put16(state, flags3);
 
 	if (is_branch) {
 		uint8_t termination_code = 0;
