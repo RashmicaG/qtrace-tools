@@ -413,6 +413,12 @@ bool qtwriter_write_record(struct qtwriter_state *state,
 	if (state->prev_record.processor_valid)
 		flags |= QTRACE_PROCESSOR_PRESENT;
 
+	if (state->prev_record.length_valid)
+		flags |= QTRACE_LENGTH_PRESENT;
+
+	if (state->prev_record.data_valid)
+		flags |= QTRACE_DATA_PRESENT;
+
 	/* Setup flags2 */
 	if (state->prev_record.nr_radix_data_valid || 
 		state->prev_record.nr_radix_insn_valid ||
@@ -496,6 +502,14 @@ bool qtwriter_write_record(struct qtwriter_state *state,
 			pshift = state->prev_record.data_page_shift;
 
 		put32(state, state->prev_record.data_ra >> pshift);
+	}
+
+	/* LENGTH */
+	if (flags & QTRACE_LENGTH_PRESENT) {
+		put8(state, record->length);
+
+		if (flags & QTRACE_DATA_PRESENT)
+			skip(state, record->length);
 	}
 
 	/* IAR PRESENT */

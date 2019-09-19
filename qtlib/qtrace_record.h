@@ -73,6 +73,9 @@ struct qtrace_record {
 	bool max_inst_depth;
 
 	uint32_t flags3;
+	bool length_valid;
+	int length;
+	bool data_valid;
 	bool processor_valid;
 	uint8_t processor;
 	bool err_present;

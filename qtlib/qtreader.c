@@ -686,6 +686,17 @@ bool qtreader_next_record(struct qtreader_state *state, struct qtrace_record *re
 		state->data_rpn_valid = false;
 	}
 
+	/* LENGTH */
+	if (flags & QTRACE_LENGTH_PRESENT) {
+		uint8_t length = GET8(state);
+		record->length_valid = true;
+		record->length = length;
+		if (flags & QTRACE_DATA_PRESENT) {
+			record->data_valid = true;
+			SKIP(state, length);
+		}
+	}
+
 	/* IAR PRESENT */
 	if (flags & QTRACE_IAR_PRESENT) {
 		state->next_insn_addr = GET64(state);
