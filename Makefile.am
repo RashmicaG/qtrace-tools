@@ -20,7 +20,7 @@ libbb_a_CFLAGS = $(AM_CFLAGS) -I$(top_srcdir)/qtrace-bbv
 
 qtlib_TESTS = qtlib/tests/test1 qtlib/tests/test2 \
 	      qtlib/tests/test3 qtlib/tests/test4 \
-		  qtlib/tests/test5
+		  qtlib/tests/test5 qtlib/tests/test6
 
 check_PROGRAMS = $(qtlib_TESTS)
 
@@ -38,6 +38,9 @@ qtlib_tests_test4_LDADD = libqtrace.a
 
 qtlib_tests_test5_SOURCES = qtlib/tests/test5.c
 qtlib_tests_test5_LDADD = libqtrace.a
+
+qtlib_tests_test6_SOURCES = qtlib/tests/test6.c
+qtlib_tests_test6_LDADD = libqtrace.a
 
 bin_PROGRAMS = branch/link_stack qtdis/qtdis qtrace-bbv/qtrace-bbv \
 	       qtbuild/qtbuild htm/htmdecoder $(PTRACER)
