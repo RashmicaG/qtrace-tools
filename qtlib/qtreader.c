@@ -621,8 +621,10 @@ bool qtreader_next_record(struct qtreader_state *state, struct qtrace_record *re
 	if (flags & QTRACE_IAR_CHANGE_PRESENT) {
 	}
 
-	if (flags & QTRACE_NODE_PRESENT)
-		GET8(state);
+	if (flags & QTRACE_NODE_PRESENT) {
+		record->node = GET8(state);
+		record->node_valid = true;
+	}
 
 	/* Termination present */
 	if (flags & QTRACE_TERMINATION_PRESENT) {

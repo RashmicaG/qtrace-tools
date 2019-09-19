@@ -400,6 +400,9 @@ bool qtwriter_write_record(struct qtwriter_state *state,
 	if (state->prev_record.data_ra_valid)
 		flags |= QTRACE_DATA_RPN_PRESENT;
 
+	if (state->prev_record.node_valid)
+		flags |= QTRACE_NODE_PRESENT;
+
 	if (is_branch) {
 		flags |= QTRACE_NODE_PRESENT | QTRACE_TERMINATION_PRESENT;
 
@@ -459,7 +462,7 @@ bool qtwriter_write_record(struct qtwriter_state *state,
 
 
 	if (flags & QTRACE_NODE_PRESENT)
-		put8(state, 0);
+		put8(state, record->node);
 
 	/* Termination present */
 	if (flags & QTRACE_TERMINATION_PRESENT) {
