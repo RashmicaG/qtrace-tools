@@ -984,6 +984,15 @@ done:
 	rec.type = HTM_RECORD_INSN;
 	rec.insn.insn = state->insn;
 	rec.insn.insn_addr = state->insn_addr;
+	rec.insn.nr_radix_insn_valid = false;
+	rec.insn.nr_radix_data_valid = false;
+	rec.insn.err_present = false;
+	rec.insn.processor_valid = false;
+	rec.insn.regs_valid = false;
+	rec.insn.insn_rpn_valid = false;
+	rec.insn.flags3 = 0;
+	rec.insn.length = 0;
+	rec.insn.node_valid = false;
 
 	if (insn.info.ira && !insn.info.esid && insn.ira.page_size > 0) {
 		rec.insn.insn_ra_valid = true;
