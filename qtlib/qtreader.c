@@ -806,11 +806,15 @@ bool qtreader_next_record(struct qtreader_state *state, struct qtrace_record *re
 		record->data_ra = ra;
 	}
 
-	if (flags2 & QTRACE_INSTRUCTION_GPAGE_SIZE_PRESENT)
+	if (flags2 & QTRACE_INSTRUCTION_GPAGE_SIZE_PRESENT) {
 		SKIP(state, 1);
+		record->insn_gpage_present = true;
+	}
 
-	if (flags2 & QTRACE_DATA_GPAGE_SIZE_PRESENT)
+	if (flags2 & QTRACE_DATA_GPAGE_SIZE_PRESENT) {
 		SKIP(state, 1);
+		record->data_gpage_present = true;
+	}
 
 	if (state->flags & QTREADER_FLAGS_TLBIE) {
 		if (!annotate_tlbie(state, record, &record->regs))

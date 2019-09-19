@@ -98,6 +98,9 @@ struct qtrace_record {
 	bool branch_direct;
 	enum branch_type branch_type;
 
+	bool data_gpage_present;
+	bool insn_gpage_present;
+
 	bool tlbie;
 	bool tlbie_local;
 	uint8_t tlbie_ric;

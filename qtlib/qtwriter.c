@@ -437,6 +437,12 @@ bool qtwriter_write_record(struct qtwriter_state *state,
 	if (state->prev_record.insn_rpn_valid)
 		flags2 |= QTRACE_SEQUENTIAL_INSTRUCTION_RPN_PRESENT;
 
+	if (state->prev_record.insn_gpage_present)
+		flags2 |= QTRACE_INSTRUCTION_GPAGE_SIZE_PRESENT;
+
+	if (state->prev_record.data_gpage_present)
+		flags2 |= QTRACE_DATA_GPAGE_SIZE_PRESENT;
+
 	if (flags2)
 		flags |= QTRACE_EXTENDED_FLAGS_PRESENT;
 
